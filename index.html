@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador del Principio de Le Châtelier</title>
+<style>
+:root{
+  --bg:#f3f6fa; --card:#ffffff; --ink:#1f2d3d; --muted:#6a7a8c; --line:#dfe6ee;
+  --accent:#3b7ddd; --accent-dark:#2d62b3;
+  --cA:#3b7ddd; --cC:#2f9e75; --cD:#e08a2c; --cQ:#8a6fd1; --cK:#5b6b7f;
+  --red:#c53b3b; --redbg:#fdecec; --green:#237a59; --greenbg:#e6f5ee; --grey:#5b6b7f; --greybg:#eef2f6;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45}
+header{padding:22px 24px 8px;max-width:1280px;margin:0 auto}
+header h1{margin:0 0 4px;font-size:1.5rem;font-weight:650}
+header p{margin:0;color:var(--muted);font-size:.95rem}
+main{max-width:1280px;margin:0 auto;padding:12px 24px 40px;display:grid;grid-template-columns:350px 1fr;gap:18px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:0 1px 2px rgba(20,40,70,.04)}
+.card h2{margin:0 0 10px;font-size:1rem;font-weight:650}
+.col{display:flex;flex-direction:column;gap:18px;min-width:0}
+
+/* reacción */
+.reaction{display:flex;flex-wrap:wrap;align-items:center;gap:10px 32px;font-size:1.2rem}
+.rx{font-weight:600;letter-spacing:.2px}
+.kc-expr{display:inline-flex;align-items:center;gap:8px}
+.frac{display:inline-flex;flex-direction:column;text-align:center;vertical-align:middle}
+.frac .num{border-bottom:1.5px solid currentColor;padding:0 8px 2px}
+.frac .den{padding:2px 8px 0}
+.small-expr{margin-top:8px;color:var(--muted);font-size:.9rem}
+.small-expr .frac .num{padding:0 6px 1px}
+.info-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{background:var(--greybg);border-radius:999px;padding:4px 12px;font-size:.88rem}
+.chip b{font-weight:650}
+.indicator{margin-top:12px;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;font-weight:600;font-size:.95rem;border:1px solid transparent}
+.indicator .dot{width:12px;height:12px;border-radius:50%;flex:0 0 12px}
+.indicator.none{background:var(--greybg);color:var(--grey);border-color:#d5dde6}.indicator.none .dot{background:#9aa8b8}
+.indicator.red{background:var(--redbg);color:var(--red);border-color:#f2c4c4}.indicator.red .dot{background:var(--red)}
+.indicator.green{background:var(--greenbg);color:var(--green);border-color:#bfe3d1}.indicator.green .dot{background:var(--green)}
+
+/* controles */
+.ctrl{padding:12px 0;border-top:1px solid var(--line)}
+.ctrl:first-of-type{border-top:none;padding-top:2px}
+.ctrl.locked{opacity:.45}
+.ctrl-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.ctrl-head label{font-weight:600;font-size:.95rem}
+.ctrl-head output{font-variant-numeric:tabular-nums;font-weight:650;color:var(--accent-dark);font-size:1.05rem}
+input[type=range]{width:100%;margin:8px 0 2px;accent-color:var(--accent)}
+.ticks{display:flex;justify-content:space-between;color:var(--muted);font-size:.78rem}
+.hint{margin:4px 0 0;color:var(--muted);font-size:.82rem}
+.note{background:var(--greybg);border-radius:8px;padding:8px 10px;font-size:.84rem;color:var(--grey);margin:6px 0 12px}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 14px;font-weight:600}
+button:hover:not(:disabled){background:#f1f5fa}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover:not(:disabled){background:var(--accent-dark)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #9cc2f5;outline-offset:2px}
+
+/* gráficos */
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+canvas{display:block;width:100%;height:300px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.84rem;color:var(--muted);margin:0 0 6px}
+.legend i{display:inline-block;width:18px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.toggle{font-size:.84rem;color:var(--muted);display:inline-flex;align-items:center;gap:6px;margin-top:6px}
+.readout{margin-top:10px;padding:10px 12px;background:var(--greybg);border-radius:8px;font-size:.92rem;font-variant-numeric:tabular-nums}
+
+/* tabla */
+table{width:100%;border-collapse:collapse;font-size:.92rem;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600;font-size:.84rem}
+td.new{font-weight:650;background:#f6faff}
+tr.sep td{border-top:2px solid var(--line)}
+.explain{margin-top:12px;font-size:.93rem}
+.explain p{margin:6px 0}
+.explain .verdict{font-weight:650}
+
+/* límites */
+#limitsBtn{display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left}
+#limitsBtn .chev{transition:transform .2s}
+#limitsBtn[aria-expanded="true"] .chev{transform:rotate(180deg)}
+#limitsPanel{margin-top:12px;font-size:.93rem}
+#limitsPanel ul{margin:8px 0 0;padding-left:20px}
+#limitsPanel li{margin:5px 0}
+.hidden{display:none}
+
+@media (max-width:1000px){
+  main{grid-template-columns:1fr}
+  .charts{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Simulador del Principio de Le Châtelier</h1>
+  <p>Perturbá el equilibrio (una variable por vez) y observá cómo se mueven Qc, las concentraciones y el nuevo equilibrio.</p>
+</header>
+
+<main>
+  <!-- Columna izquierda: controles -->
+  <div class="col">
+    <section class="card" aria-labelledby="hCtrl">
+      <h2 id="hCtrl">Perturbaciones</h2>
+      <p class="note">Solo se puede hacer una perturbación a la vez: al mover un control, los otros dos se bloquean hasta que termine la simulación.</p>
+
+      <div class="ctrl" id="ctrlA">
+        <div class="ctrl-head"><label for="sA">Concentración de A, [A]</label><output id="oA" for="sA">1.00 M</output></div>
+        <input type="range" id="sA" min="0" max="100" step="1" value="10">
+        <div class="ticks"><span>0.05 M</span><span>10 M</span></div>
+        <p class="hint">Hacia abajo quita A; hacia arriba agrega A. [C] y [D] no se tocan.</p>
+      </div>
+
+      <div class="ctrl" id="ctrlV">
+        <div class="ctrl-head"><label for="sV">Volumen del recipiente, V</label><output id="oV" for="sV">1.0 L</output></div>
+        <input type="range" id="sV" min="0.2" max="5" step="0.1" value="1">
+        <div class="ticks"><span>0.2 L</span><span>5 L</span></div>
+        <p class="hint">Los moles no cambian; las concentraciones pasan a ser n/V.</p>
+      </div>
+
+      <div class="ctrl" id="ctrlT">
+        <div class="ctrl-head"><label for="sT">Temperatura, T</label><output id="oT" for="sT">300 °C</output></div>
+        <input type="range" id="sT" min="200" max="600" step="5" value="300">
+        <div class="ticks"><span>200 °C</span><span>600 °C</span></div>
+        <p class="hint">Es la única variable que cambia el valor de Kc.</p>
+      </div>
+
+      <div class="btns">
+        <button id="btnApply" class="primary" type="button" disabled>Aplicar perturbación</button>
+        <button id="btnCancel" type="button" disabled>Cancelar cambio</button>
+        <button id="btnReset" type="button">Restablecer</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Columna derecha -->
+  <div class="col">
+    <section class="card" aria-labelledby="hRx">
+      <h2 id="hRx">Reacción en estudio</h2>
+      <div class="reaction">
+        <span class="rx">2 A<sub>(g)</sub> + B<sub>(s)</sub> ⇌ C<sub>(g)</sub> + 2 D<sub>(g)</sub></span>
+        <span class="kc-expr">K<sub>c</sub> =
+          <span class="frac"><span class="num">[C]·[D]<sup>2</sup></span><span class="den">[A]<sup>2</sup></span></span>
+        </span>
+      </div>
+      <div class="small-expr">Q<sub>c</sub> =
+        <span class="frac"><span class="num">[C]·[D]<sup>2</sup></span><span class="den">[A]<sup>2</sup></span></span>
+        &nbsp;con las concentraciones de cada instante (B es sólido, está en exceso y no interviene).
+      </div>
+      <div class="info-row">
+        <span class="chip">K<sub>c</sub> = <b id="kcNow">–</b></span>
+        <span class="chip">T = <b id="tNow">–</b></span>
+        <span class="chip">V = <b id="vNow">–</b></span>
+        <span class="chip">ΔH° = −103 kJ/mol</span>
+      </div>
+      <div id="kcIndicator" class="indicator none" role="status" aria-live="polite">
+        <span class="dot"></span><span id="kcIndicatorText">Todavía no hiciste ninguna perturbación.</span>
+      </div>
+    </section>
+
+    <div class="charts">
+      <section class="card" aria-labelledby="hBars">
+        <h2 id="hBars">Qc frente a Kc</h2>
+        <canvas id="cvBars" role="img" aria-label="Gráfico de barras de Qc y Kc"></canvas>
+        <label class="toggle"><input type="checkbox" id="logToggle"> Escala logarítmica (útil cuando Qc y Kc son muy distintos)</label>
+      </section>
+      <section class="card" aria-labelledby="hLines">
+        <h2 id="hLines">Concentraciones en el tiempo</h2>
+        <div class="legend">
+          <span><i style="background:var(--cA)"></i>[A] reactivo</span>
+          <span><i style="background:var(--cC)"></i>[C] producto</span>
+          <span><i style="background:var(--cD)"></i>[D] producto</span>
+        </div>
+        <canvas id="cvLines" role="img" aria-label="Gráfico de líneas de las concentraciones de A, C y D en función del tiempo"></canvas>
+      </section>
+    </div>
+
+    <section class="card" aria-labelledby="hRes">
+      <h2 id="hRes">Panel de resultados</h2>
+      <div id="readout" class="readout" aria-live="off"></div>
+      <table style="margin-top:12px">
+        <thead>
+          <tr><th></th><th>Equilibrio anterior</th><th>Justo tras perturbar (t = 0)</th><th>Nuevo equilibrio (t = 5 s)</th></tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div id="explain" class="explain" aria-live="polite"></div>
+    </section>
+
+    <section class="card">
+      <button id="limitsBtn" type="button" aria-expanded="false" aria-controls="limitsPanel">
+        <span>Límites del Modelo</span><span class="chev" aria-hidden="true">▾</span>
+      </button>
+      <div id="limitsPanel" class="hidden">
+        <p>Este es un <b>modelo simplificado</b> de un sistema ideal, pensado para visualizar el Principio de Le Châtelier, no para predecir resultados experimentales reales.</p>
+        <ul>
+          <li>Se considera que los <b>gases son ideales</b>.</li>
+          <li>La <b>entalpía de reacción (ΔH°) no varía con la temperatura</b>.</li>
+          <li><b>No se considera la cinética real</b> de la reacción: la evolución temporal es una <b>interpolación lineal visual</b> (60 pasos, 5 s) entre el estado inmediatamente posterior a la perturbación y el equilibrio final. No es un modelo cinético y no representa cuánto tarda realmente el sistema en equilibrarse.</li>
+          <li>Se considera <b>una sola reacción</b>, que ocurre en <b>una sola etapa</b>.</li>
+          <li>Los <b>sólidos y líquidos puros no intervienen en el equilibrio</b>: B es sólido, está en exceso y no aparece en Kc ni en Qc.</li>
+          <li>Kc depende <b>solo de la temperatura</b> (ecuación de Van't Hoff); los cambios de [A] o de V modifican Qc, pero no Kc.</li>
+          <li>Las concentraciones de equilibrio se obtienen numéricamente por bisección (tolerancia 1·10⁻⁶), por lo que son aproximadas.</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+/* ============================================================
+   MOTOR (funciones puras, sin acceso al DOM)
+   ============================================================ */
+const R = 8.314;            // J/(mol·K)
+const DH = -103000;         // J/mol
+const K_REF = 22.5;         // Kc a T_ref
+const STEPS = 60;           // pasos de la interpolación
+const DURATION = 5000;      // ms (5 s)
+const TOL = 1e-6;           // tolerancia de la bisección
+const MAXIT = 1000;         // iteraciones máximas
+const A_MIN = 0.05;         // [A] mínima permitida (M)
+const INIT = { A: 1, C: 2.5, D: 3, V: 1, T: 300 };
+
+// Qc = [C]·[D]^2 / [A]^2  (B es sólido y no interviene). Valida [A] > 0.
+function Qc(A, C, D) {
+  if (!(A > 0)) return Infinity;
+  return (C * D * D) / (A * A);
+}
+
+// Kc2 a partir de Kc1 con Van't Hoff: ln(K2/K1) = -(ΔH/R)·(1/T2 - 1/T1), T en kelvin
+function vantHoff(K1, T1_C, T2_C) {
+  const T1 = T1_C + 273.15, T2 = T2_C + 273.15;
+  return K1 * Math.exp(-(DH / R) * (1 / T2 - 1 / T1));
+}
+
+// Resuelve Qc(x) = Kc por bisección. x = extensión (A = A0-2x, C = C0+x, D = D0+2x).
+// Si Qc < Kc la reacción avanza (x > 0): intervalo [0, x_max] con x_max = [A]0/2.
+// Si Qc > Kc la reacción retrocede (x < 0): intervalo [-min([C]0,[D]0/2), 0].
+function solveEq(A0, C0, D0, Kc) {
+  const f = x => Qc(A0 - 2 * x, C0 + x, D0 + 2 * x) - Kc;
+  const q0 = Qc(A0, C0, D0);
+  let x = 0, iters = 0;
+  if (Math.abs(q0 - Kc) > 1e-9 * Math.max(1, Kc)) {
+    let lo, hi;
+    if (q0 < Kc) { lo = 0; hi = A0 / 2; }
+    else { lo = -Math.min(C0, D0 / 2); hi = 0; }
+    for (iters = 1; iters <= MAXIT; iters++) {
+      const mid = (lo + hi) / 2, fm = f(mid);
+      if (fm === 0 || (hi - lo) / 2 < TOL) { lo = hi = mid; break; }
+      if (fm < 0) lo = mid; else hi = mid;   // f crece con x
+    }
+    x = (lo + hi) / 2;
+  }
+  return { A: A0 - 2 * x, C: C0 + x, D: D0 + 2 * x, x, iters };
+}
+
+// Interpolación lineal t=0 → equilibrio, STEPS pasos (61 puntos)
+function buildSeries(c0, eq) {
+  const ser = { A: [], C: [], D: [] }, q = [];
+  for (let i = 0; i <= STEPS; i++) {
+    const f = i / STEPS;
+    const a = c0.A + (eq.A - c0.A) * f;
+    const c = c0.C + (eq.C - c0.C) * f;
+    const d = c0.D + (eq.D - c0.D) * f;
+    ser.A.push(a); ser.C.push(c); ser.D.push(d);
+    q.push(Qc(a, c, d));
+  }
+  return { ser, q };
+}
+
+// ==== UI ====
+(function () {
+'use strict';
+const $ = s => document.querySelector(s);
+const C_A = '#3b7ddd', C_C = '#2f9e75', C_D = '#e08a2c', C_Q = '#8a6fd1', C_K = '#5b6b7f';
+const INK = '#1f2d3d', MUTED = '#6a7a8c', GRID = '#e3e9f0';
+
+const sl = { A: $('#sA'), V: $('#sV'), T: $('#sT') };
+const grp = { A: $('#ctrlA'), V: $('#ctrlV'), T: $('#ctrlT') };
+const btnApply = $('#btnApply'), btnCancel = $('#btnCancel'), btnReset = $('#btnReset');
+const cvBars = $('#cvBars'), cvLines = $('#cvLines'), logToggle = $('#logToggle');
+
+let S;                 // estado actual (moles, V, T, Kc)
+let view;              // lo que muestran los gráficos
+let run = null;        // datos de la perturbación en curso / última
+let running = false, raf = 0, startT = 0;
+let ref = { A: 10, V: 1, T: 300 };
+let tbl = { prev: null, post: null, neu: null, prevQ: null, postQ: null, neuQ: null, prevK: null, postK: null, neuK: null };
+
+/* ---------- utilidades ---------- */
+const idxToA = i => (i === 0 ? A_MIN : i / 10);
+const aToIdx = a => (a <= 0.075 ? 0 : Math.min(100, Math.max(1, Math.round(a * 10))));
+const cur = () => ({ A: S.nA / S.V, C: S.nC / S.V, D: S.nD / S.V });
+const f2 = v => v.toFixed(2);
+function fmtQ(v) {
+  if (!isFinite(v)) return '∞';
+  if (v >= 100) return v.toFixed(1);
+  if (v >= 1) return v.toFixed(2);
+  if (v >= 0.01) return v.toFixed(3);
+  return v.toExponential(2);
+}
+function niceMax(v) {
+  if (!(v > 0)) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p;
+  const n = m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10;
+  return n * p;
+}
+function decimalsFor(step) {
+  for (let d = 0; d <= 5; d++) if (Math.abs(Number(step.toFixed(d)) - step) < 1e-9) return d;
+  return 3;
+}
+
+/* ---------- estado ---------- */
+function initState() {
+  const eq = solveEq(INIT.A, INIT.C, INIT.D, K_REF);
+  S = { V: INIT.V, T: INIT.T, Kc: K_REF, nA: eq.A * INIT.V, nC: eq.C * INIT.V, nD: eq.D * INIT.V };
+  run = null;
+  const c = cur();
+  const ser = { A: Array(STEPS + 1).fill(c.A), C: Array(STEPS + 1).fill(c.C), D: Array(STEPS + 1).fill(c.D) };
+  const q = Array(STEPS + 1).fill(Qc(c.A, c.C, c.D));
+  view = { ser, q, Kc: S.Kc, step: STEPS, idle: true };
+  tbl = { prev: null, post: null, neu: c, prevQ: null, postQ: null, neuQ: Qc(c.A, c.C, c.D), prevK: null, postK: null, neuK: S.Kc };
+  syncSlidersToState();
+  setIndicator('none', 'Todavía no hiciste ninguna perturbación.');
+  $('#explain').innerHTML = '<p style="color:var(--muted)">El sistema parte en equilibrio (Qc = Kc). Mové uno de los controles y presioná “Aplicar perturbación”.</p>';
+}
+function syncSlidersToState() {
+  const c = cur();
+  ref.A = aToIdx(c.A); ref.V = S.V; ref.T = S.T;
+  sl.A.value = ref.A; sl.V.value = S.V; sl.T.value = S.T;
+}
+
+/* ---------- controles ---------- */
+function changed() {
+  if (+sl.A.value !== ref.A) return 'A';
+  if (Math.abs(parseFloat(sl.V.value) - ref.V) > 1e-9) return 'V';
+  if (Math.abs(parseFloat(sl.T.value) - ref.T) > 1e-9) return 'T';
+  return null;
+}
+function updateControls() {
+  const ch = changed();
+  ['A', 'V', 'T'].forEach(k => {
+    const lock = running || (ch !== null && ch !== k);
+    sl[k].disabled = lock;
+    grp[k].classList.toggle('locked', lock);
+  });
+  btnApply.disabled = running || !ch;
+  btnCancel.disabled = running || !ch;
+  const a = (ch === 'A') ? Math.max(A_MIN, idxToA(+sl.A.value)) : cur().A;
+  $('#oA').textContent = f2(a) + ' M';
+  $('#oV').textContent = parseFloat(sl.V.value).toFixed(1) + ' L';
+  $('#oT').textContent = parseFloat(sl.T.value) + ' °C';
+}
+function updateInfo() {
+  $('#kcNow').textContent = fmtQ(S.Kc);
+  $('#tNow').textContent = S.T + ' °C';
+  $('#vNow').textContent = S.V.toFixed(1) + ' L';
+}
+function setIndicator(kind, text) {
+  const el = $('#kcIndicator');
+  el.className = 'indicator ' + kind;
+  $('#kcIndicatorText').textContent = text;
+}
+
+/* ---------- perturbación ---------- */
+function applyPerturbation() {
+  const kind = changed();
+  if (!kind || running) return;
+  const raw = kind === 'A' ? Math.max(A_MIN, idxToA(+sl.A.value))
+            : kind === 'V' ? parseFloat(sl.V.value)
+            : parseFloat(sl.T.value);
+  const prev = cur(), prevK = S.Kc, prevQ = Qc(prev.A, prev.C, prev.D);
+  const oldV = S.V, oldT = S.T;
+  let V = S.V, T = S.T, Kc = S.Kc, nA = S.nA, nC = S.nC, nD = S.nD;
+  let incr;
+  if (kind === 'A') { incr = raw > prev.A; nA = raw * V; }              // solo cambia [A]
+  else if (kind === 'V') { incr = raw > oldV; V = raw; }                // moles constantes
+  else { incr = raw > oldT; Kc = vantHoff(S.Kc, S.T, raw); T = raw; }   // Van't Hoff
+
+  const c0 = { A: nA / V, C: nC / V, D: nD / V };
+  const q0 = Qc(c0.A, c0.C, c0.D);
+  const eq = solveEq(c0.A, c0.C, c0.D, Kc);
+  const { ser, q } = buildSeries(c0, eq);
+
+  run = { kind, raw, incr, prev, prevK, prevQ, c0, q0, eq, Kc, V, T };
+  S = { V, T, Kc, nA, nC, nD };                 // parámetros ya perturbados
+  view = { ser, q, Kc, step: 0, idle: false };
+  tbl = { prev, post: c0, neu: null, prevQ, postQ: q0, neuQ: null, prevK, postK: Kc, neuK: null };
+
+  if (kind === 'T') setIndicator('red', 'Kc cambió porque moviste T (de ' + fmtQ(prevK) + ' a ' + fmtQ(Kc) + ').');
+  else setIndicator('green', 'Kc no cambió porque moviste ' + (kind === 'V' ? 'V' : '[A]') + ' (Kc = ' + fmtQ(Kc) + ').');
+  $('#explain').innerHTML = buildExplain(run);
+
+  running = true;
+  updateControls(); updateInfo(); renderAll();
+  startT = performance.now();
+  raf = requestAnimationFrame(frame);
+}
+
+function frame(now) {
+  if (!running) return;
+  const e = Math.max(0, now - startT);
+  const k = Math.min(STEPS, Math.floor(e / DURATION * STEPS));
+  if (k !== view.step) { view.step = k; renderAll(); }
+  if (e >= DURATION) { finish(); return; }
+  raf = requestAnimationFrame(frame);
+}
+
+function finish() {
+  view.step = STEPS;
+  S.nA = run.eq.A * S.V; S.nC = run.eq.C * S.V; S.nD = run.eq.D * S.V;
+  tbl.neu = run.eq; tbl.neuQ = Qc(run.eq.A, run.eq.C, run.eq.D); tbl.neuK = S.Kc;
+  running = false;
+  syncSlidersToState();
+  updateControls(); updateInfo(); renderAll();
+}
+
+function buildExplain(r) {
+  const eqCase = Math.abs(r.q0 - r.Kc) <= 1e-9 * Math.max(1, r.Kc);
+  const toProd = r.q0 < r.Kc;
+  let verdict;
+  if (eqCase) verdict = 'Qc = Kc (' + fmtQ(r.q0) + '): el sistema sigue en equilibrio y no se desplaza.';
+  else if (toProd) verdict = 'Qc = ' + fmtQ(r.q0) + ' &lt; Kc = ' + fmtQ(r.Kc) + ': el sistema se desplaza hacia los productos (se consume A y se forman C y D).';
+  else verdict = 'Qc = ' + fmtQ(r.q0) + ' &gt; Kc = ' + fmtQ(r.Kc) + ': el sistema se desplaza hacia los reactivos (se consumen C y D y se forma A).';
+  let why = '';
+  if (r.kind === 'A') {
+    why = r.incr
+      ? 'Agregaste A: como [A] está en el denominador, Qc disminuye por debajo de Kc y el sistema consume parte del A agregado.'
+      : 'Quitaste A: como [A] está en el denominador, Qc aumenta por encima de Kc y el sistema repone parte del A retirado.';
+    why += ' Kc no cambia porque solo depende de T.';
+  } else if (r.kind === 'V') {
+    why = r.incr
+      ? 'Aumentaste V: los moles no cambian pero todas las concentraciones disminuyen. Hay 3 mol de productos gaseosos (C + 2 D) contra 2 mol de reactivo gaseoso (2 A), así que el sistema se desplaza hacia donde hay más moles gaseosos: los productos.'
+      : 'Disminuiste V: los moles no cambian pero todas las concentraciones aumentan. El sistema se desplaza hacia donde hay menos moles gaseosos: los reactivos (2 mol contra 3 mol).';
+    why += ' Kc no cambia porque solo depende de T.';
+  } else {
+    why = r.incr
+      ? 'Aumentaste T: la reacción es exotérmica (ΔH° &lt; 0), por lo tanto Kc disminuye. Las concentraciones no cambian al instante, así que Qc queda igual, pero ahora Qc &gt; Kc.'
+      : 'Disminuiste T: la reacción es exotérmica (ΔH° &lt; 0), por lo tanto Kc aumenta. Las concentraciones no cambian al instante, así que Qc queda igual, pero ahora Qc &lt; Kc.';
+  }
+  return '<p class="verdict">' + verdict + '</p><p>' + why + '</p>';
+}
+
+/* ---------- render ---------- */
+function renderAll() { renderReadout(); renderTable(); drawBars(); drawLines(); }
+
+function renderReadout() {
+  const el = $('#readout');
+  const k = view.step, q = view.q[k], K = view.Kc;
+  const rel = Math.abs(q - K) / K < 1e-3 ? '≈' : (q < K ? '<' : '>');
+  const tail = rel === '<' ? ' → tiende hacia productos' : rel === '>' ? ' → tiende hacia reactivos' : ' → en equilibrio';
+  const A = view.ser.A[k], C = view.ser.C[k], D = view.ser.D[k];
+  const head = view.idle ? 'Estado inicial en equilibrio' : 't = <b>' + (k * DURATION / 1000 / STEPS).toFixed(2) + ' s</b>';
+  el.innerHTML = head + ' · [A] = <b>' + f2(A) + '</b> · [C] = <b>' + f2(C) + '</b> · [D] = <b>' + f2(D) + '</b> M · Qc = <b>' + fmtQ(q) + '</b> ' + rel + ' Kc = <b>' + fmtQ(K) + '</b>' + tail;
+}
+
+function renderTable() {
+  const cell = (obj, key) => obj ? f2(obj[key]) : '–';
+  const rows = [['A', '[A] (reactivo)'], ['C', '[C] (producto)'], ['D', '[D] (producto)']];
+  let html = '';
+  rows.forEach(([key, label]) => {
+    const neu = tbl.neu ? f2(tbl.neu[key]) : (running ? '…' : '–');
+    html += '<tr><td>' + label + ' (M)</td><td>' + cell(tbl.prev, key) + '</td><td>' + cell(tbl.post, key) + '</td><td class="new">' + neu + '</td></tr>';
+  });
+  const q = (v, wait) => v === null ? (wait && running ? '…' : '–') : fmtQ(v);
+  html += '<tr class="sep"><td>Qc</td><td>' + q(tbl.prevQ) + '</td><td>' + q(tbl.postQ) + '</td><td class="new">' + q(tbl.neuQ, true) + '</td></tr>';
+  html += '<tr><td>Kc</td><td>' + q(tbl.prevK) + '</td><td>' + q(tbl.postK) + '</td><td class="new">' + q(tbl.neuK, true) + '</td></tr>';
+  $('#tbody').innerHTML = html;
+}
+
+function prep(cv) {
+  const dpr = window.devicePixelRatio || 1;
+  const r = cv.getBoundingClientRect();
+  const w = Math.max(10, r.width), h = Math.max(10, r.height);
+  const W = Math.round(w * dpr), H = Math.round(h * dpr);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  ctx.font = '12px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+  return { ctx, w, h };
+}
+
+function drawBars() {
+  const { ctx, w, h } = prep(cvBars);
+  const m = { l: 58, r: 16, t: 22, b: 34 };
+  const pw = w - m.l - m.r, ph = h - m.t - m.b;
+  const q = view.q[view.step], K = view.Kc;
+  const all = view.q.concat([K]);
+  const maxv = Math.max.apply(null, all), minv = Math.min.apply(null, all);
+  const log = logToggle.checked;
+  let toY, ticks = [];
+  if (!log) {
+    const ymax = niceMax(maxv * 1.08), step = ymax / 5, d = decimalsFor(step);
+    toY = v => m.t + ph * (1 - v / ymax);
+    for (let i = 0; i <= 5; i++) ticks.push({ y: toY(step * i), label: (step * i).toFixed(d) });
+  } else {
+    const lo = Math.floor(Math.log10(minv / 1.001));
+    let hi = Math.ceil(Math.log10(maxv * 1.001));
+    if (hi - lo < 1) hi = lo + 1;
+    toY = v => m.t + ph * (1 - (Math.log10(Math.max(v, Math.pow(10, lo))) - lo) / (hi - lo));
+    for (let p = lo; p <= hi; p++) ticks.push({ y: toY(Math.pow(10, p)), label: String(Math.pow(10, p)) });
+  }
+  ctx.lineWidth = 1; ctx.strokeStyle = GRID; ctx.fillStyle = MUTED; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  ticks.forEach(t => {
+    ctx.beginPath(); ctx.moveTo(m.l, t.y); ctx.lineTo(w - m.r, t.y); ctx.stroke();
+    ctx.fillText(t.label, m.l - 6, t.y);
+  });
+  const base = m.t + ph;
+  const bw = Math.min(90, pw / 4);
+  const cx1 = m.l + pw * 0.3, cx2 = m.l + pw * 0.7;
+  // barras
+  [[cx1, q, C_Q, 'Qc'], [cx2, K, C_K, 'Kc']].forEach(([cx, v, col, name]) => {
+    const y = toY(v);
+    ctx.fillStyle = col; ctx.globalAlpha = 0.9;
+    ctx.fillRect(cx - bw / 2, y, bw, Math.max(1, base - y));
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = INK; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.font = '600 13px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+    ctx.fillText(fmtQ(v), cx, Math.max(y - 4, m.t + 12));
+    ctx.textBaseline = 'top'; ctx.fillStyle = INK;
+    ctx.fillText(name, cx, base + 8);
+    ctx.font = '12px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+  });
+  // línea de referencia Kc
+  ctx.setLineDash([6, 4]); ctx.strokeStyle = C_K; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(m.l, toY(K)); ctx.lineTo(w - m.r, toY(K)); ctx.stroke();
+  ctx.setLineDash([]);
+  // eje
+  ctx.strokeStyle = '#9aa8b8'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(m.l, m.t); ctx.lineTo(m.l, base); ctx.lineTo(w - m.r, base); ctx.stroke();
+}
+
+function drawLines() {
+  const { ctx, w, h } = prep(cvLines);
+  const m = { l: 48, r: 106, t: 16, b: 40 };
+  const pw = w - m.l - m.r, ph = h - m.t - m.b;
+  const keys = [['A', C_A, '[A]'], ['C', C_C, '[C]'], ['D', C_D, '[D]']];
+  let maxv = 0;
+  keys.forEach(([k]) => view.ser[k].forEach(v => { if (v > maxv) maxv = v; }));
+  const ymax = niceMax(maxv * 1.08), step = ymax / 5, d = decimalsFor(step);
+  const toX = t => m.l + pw * t / 5;
+  const toY = v => m.t + ph * (1 - v / ymax);
+  ctx.lineWidth = 1; ctx.strokeStyle = GRID; ctx.fillStyle = MUTED;
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let i = 0; i <= 5; i++) {
+    const y = toY(step * i);
+    ctx.beginPath(); ctx.moveTo(m.l, y); ctx.lineTo(m.l + pw, y); ctx.stroke();
+    ctx.fillText((step * i).toFixed(d), m.l - 6, y);
+  }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let t = 0; t <= 5; t++) {
+    const x = toX(t);
+    ctx.beginPath(); ctx.moveTo(x, m.t); ctx.lineTo(x, m.t + ph); ctx.stroke();
+    ctx.fillText(String(t), x, m.t + ph + 6);
+  }
+  ctx.fillStyle = MUTED;
+  ctx.fillText('Tiempo (s)', m.l + pw / 2, h - 16);
+  ctx.save(); ctx.translate(12, m.t + ph / 2); ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'middle'; ctx.fillText('Concentración (M)', 0, 0); ctx.restore();
+  ctx.strokeStyle = '#9aa8b8';
+  ctx.beginPath(); ctx.moveTo(m.l, m.t); ctx.lineTo(m.l, m.t + ph); ctx.lineTo(m.l + pw, m.t + ph); ctx.stroke();
+
+  const k = view.step;
+  ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+  keys.forEach(([key, col]) => {
+    ctx.strokeStyle = col; ctx.beginPath();
+    for (let i = 0; i <= k; i++) {
+      const x = toX(i * 5 / STEPS), y = toY(view.ser[key][i]);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    if (!view.idle && k < STEPS) {
+      ctx.fillStyle = col; ctx.beginPath();
+      ctx.arc(toX(k * 5 / STEPS), toY(view.ser[key][k]), 4, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+  // valores de equilibrio (2 decimales) al llegar al final
+  if (k === STEPS) {
+    const labs = keys.map(([key, col, name]) => ({ y: toY(view.ser[key][STEPS]), col, text: name + ' = ' + f2(view.ser[key][STEPS]) + ' M' }));
+    labs.sort((a, b) => a.y - b.y);
+    for (let i = 1; i < labs.length; i++) if (labs[i].y - labs[i - 1].y < 16) labs[i].y = labs[i - 1].y + 16;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.font = '600 12px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+    labs.forEach(l => { ctx.fillStyle = l.col; ctx.fillText(l.text, toX(5) + 8, l.y); });
+  }
+}
+
+/* ---------- eventos ---------- */
+['A', 'V', 'T'].forEach(k => sl[k].addEventListener('input', updateControls));
+btnApply.addEventListener('click', applyPerturbation);
+btnCancel.addEventListener('click', () => { if (running) return; syncSlidersToState(); updateControls(); });
+btnReset.addEventListener('click', () => {
+  cancelAnimationFrame(raf); running = false;
+  initState(); updateControls(); updateInfo(); renderAll();
+});
+logToggle.addEventListener('change', drawBars);
+window.addEventListener('resize', () => { drawBars(); drawLines(); });
+$('#limitsBtn').addEventListener('click', function () {
+  const open = this.getAttribute('aria-expanded') === 'true';
+  this.setAttribute('aria-expanded', String(!open));
+  $('#limitsPanel').classList.toggle('hidden', open);
+});
+
+/* ---------- arranque ---------- */
+initState(); updateControls(); updateInfo(); renderAll();
+})();
+</script>
+</body>
+</html>
